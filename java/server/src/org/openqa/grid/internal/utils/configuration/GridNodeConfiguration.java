@@ -17,11 +17,14 @@
 
 package org.openqa.grid.internal.utils.configuration;
 
+import static java.util.Optional.ofNullable;
+
 import com.google.common.annotations.VisibleForTesting;
 
 import org.openqa.grid.common.RegistrationRequest;
 import org.openqa.grid.common.SeleniumProtocol;
 import org.openqa.grid.common.exception.GridConfigurationException;
+import org.openqa.grid.internal.cli.GridNodeCliOptions;
 import org.openqa.grid.internal.utils.configuration.json.NodeJsonConfiguration;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
@@ -31,6 +34,8 @@ import org.openqa.selenium.remote.CapabilityType;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -163,27 +168,59 @@ public class GridNodeConfiguration extends GridConfiguration {
   public GridNodeConfiguration(NodeJsonConfiguration jsonConfig) {
     super(jsonConfig);
     role = ROLE;
-    capabilities = jsonConfig.getCapabilities();
-    maxSession = jsonConfig.getMaxSession();
-    register = jsonConfig.getRegister();
-    registerCycle = jsonConfig.getRegisterCycle();
-    nodeStatusCheckTimeout = jsonConfig.getNodeStatusCheckTimeout();
-    nodePolling = jsonConfig.getNodePolling();
-    unregisterIfStillDownAfter = jsonConfig.getUnregisterIfStillDownAfter();
-    downPollingLimit = jsonConfig.getDownPollingLimit();
-    proxy = jsonConfig.getProxy();
+    capabilities = new ArrayList<>(ofNullable(jsonConfig.getCapabilities())
+                                       .orElse(DEFAULT_CONFIG_FROM_JSON.getCapabilities()));
+    maxSession = ofNullable(jsonConfig.getMaxSession())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getMaxSession());
+    register = ofNullable(jsonConfig.getRegister())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getRegister());
+    registerCycle = ofNullable(jsonConfig.getRegisterCycle())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getRegisterCycle());
+    nodeStatusCheckTimeout = ofNullable(jsonConfig.getNodeStatusCheckTimeout())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getNodeStatusCheckTimeout());
+    nodePolling = ofNullable(jsonConfig.getNodePolling())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getNodePolling());
+    unregisterIfStillDownAfter = ofNullable(jsonConfig.getUnregisterIfStillDownAfter())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getUnregisterIfStillDownAfter());
+    downPollingLimit = ofNullable(jsonConfig.getDownPollingLimit())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getDownPollingLimit());
+    proxy = ofNullable(jsonConfig.getProxy())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getProxy());
     enablePlatformVerification = jsonConfig.isEnablePlatformVerification();
     if (jsonConfig.getHub() != null) {
+      // -hub has precedence
       hub = jsonConfig.getHub();
 
+    } else if (jsonConfig.getHubHost() != null && jsonConfig.getHubPort() != null) {
+      hubHost = ofNullable(jsonConfig.getHubHost()).orElse(DEFAULT_CONFIG_FROM_JSON.getHubHost());
+      hubPort = ofNullable(jsonConfig.getHubPort()).orElse(DEFAULT_CONFIG_FROM_JSON.getHubPort());
+
     } else {
-      if (jsonConfig.getHubHost() == null) {
-        throw new RuntimeException("You must specify either a hubHost or hub parameter in a node JSON config.");
-      }
-      if (jsonConfig.getHubPort() == null) {
-        throw new RuntimeException("You must specify either a hubPort or hub parameter in a node JSON config.");
-      }
-      hub = hubHostPort.toString();
+      hub = DEFAULT_CONFIG_FROM_JSON.getHub();
+    }
+  }
+
+  public GridNodeConfiguration(GridNodeCliOptions cliConfig) {
+    this(ofNullable(cliConfig.getConfigFile()).map(NodeJsonConfiguration::loadFromResourceOrFile)
+             .orElse(DEFAULT_CONFIG_FROM_JSON));
+    super.merge(cliConfig);
+    ofNullable(cliConfig.getCapabilities()).ifPresent(v -> capabilities = v);
+    ofNullable(cliConfig.getMaxSession()).ifPresent(v -> maxSession = v);
+    ofNullable(cliConfig.getRegister()).ifPresent(v -> register = v);
+    ofNullable(cliConfig.getRegisterCycle()).ifPresent(v -> registerCycle = v);
+    ofNullable(cliConfig.getNodeStatusCheckTimeout()).ifPresent(v -> nodeStatusCheckTimeout = v);
+    ofNullable(cliConfig.getNodePolling()).ifPresent(v -> nodePolling = v);
+    ofNullable(cliConfig.getUnregisterIfStillDownAfter()).ifPresent(v -> unregisterIfStillDownAfter = v);
+    ofNullable(cliConfig.getDownPollingLimit()).ifPresent(v -> downPollingLimit = v);
+    ofNullable(cliConfig.getProxy()).ifPresent(v -> proxy = v);
+    ofNullable(cliConfig.getEnablePlatformVerification()).ifPresent(v -> enablePlatformVerification = v);
+    ofNullable(cliConfig.getId()).ifPresent(v -> id = v);
+    if (cliConfig.getHub() != null) {
+      hub = cliConfig.getHub();
+    } else if (cliConfig.getHubHost() != null || cliConfig.getHubPort() != null) {
+      hub = null;
+      ofNullable(cliConfig.getHubHost()).ifPresent(v -> hubHost = v);
+      ofNullable(cliConfig.getHubPort()).ifPresent(v -> hubPort = v);
     }
   }
 
@@ -206,20 +243,8 @@ public class GridNodeConfiguration extends GridConfiguration {
           throw new RuntimeException("-hub must be a valid url: " + hub, mURLe);
         }
       } else if (hubHost != null || hubPort != null) {
-        if (hubHost == null) {
-          throw new RuntimeException("You must specify either a -hubHost or -hub parameter.");
-        }
-        if (hubPort == null) {
-          throw new RuntimeException("You must specify either a -hubPort or -hub parameter.");
-        }
-        hubHostPort = new HostPort(hubHost, hubPort);
-      } else {
-        try {
-          URL u = new URL(hub);
-          hubHostPort = new HostPort(u.getHost(), u.getPort());
-        } catch (MalformedURLException mURLe) {
-          throw new RuntimeException("-hub must be a valid url: " + hub, mURLe);
-        }
+        hubHostPort = new HostPort(ofNullable(hubHost).orElse(DEFAULT_CONFIG_FROM_JSON.getHubHost()),
+                                   ofNullable(hubPort).orElse(DEFAULT_CONFIG_FROM_JSON.getHubPort()));
       }
     }
     return hubHostPort;
@@ -341,7 +366,9 @@ public class GridNodeConfiguration extends GridConfiguration {
       GridNodeConfiguration result = new GridNodeConfiguration(); // defaults
       result.merge(fromJson);
       // copy non-mergeable fields
-      result.hub = String.format("http://%s:%s", fromJson.getHubHostPort(), fromJson.getHubPort());
+      if (fromJson.getHubHostPort() != null) {
+        result.hub = String.format("http://%s:%s", fromJson.getHubHostPort(), fromJson.getHubPort());
+      }
       if (fromJson.hub != null) {
         result.hub = fromJson.hub;
       }

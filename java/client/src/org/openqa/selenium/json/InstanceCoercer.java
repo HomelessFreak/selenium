@@ -114,8 +114,8 @@ class InstanceCoercer extends TypeCoercer<Object> {
     }
 
     return fields.stream()
-        .filter(field -> !Modifier.isFinal(field.getModifiers()))
         .filter(field -> !Modifier.isTransient(field.getModifiers()))
+        .filter(field -> !Modifier.isStatic(field.getModifiers()))
         .peek(field -> field.setAccessible(true))
         .collect(
             Collectors.toMap(

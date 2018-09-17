@@ -32,7 +32,6 @@
     <orderEntry type="library" name="servlet-api" level="project" />
     <orderEntry type="library" name="testng" level="project" />
     <orderEntry type="library" name="xml-apis" level="project" />
-    <orderEntry type="library" name="sac" level="project" />
     <orderEntry type="library" name="jetty" level="project" />
     <orderEntry type="library" scope="TEST" name="littleproxy" level="project" />
     <orderEntry type="library" scope="TEST" name="slf4j" level="project" />
@@ -44,6 +43,7 @@
     <orderEntry type="library" name="javaparser" level="project" />
     <orderEntry type="library" name="okhttp" level="project" />
     <orderEntry type="library" scope="TEST" name="jetty-orig" level="project" />
+    <orderEntry type="library" scope="TEST" name="assertj" level="project" />
     <orderEntry type="library" name="auto-service" level="project" />
   </component>
   <component name="sonarModuleSettings">

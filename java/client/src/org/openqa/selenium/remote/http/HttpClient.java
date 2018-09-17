@@ -24,6 +24,7 @@ import org.openqa.selenium.remote.internal.OkHttpClient;
 
 import java.io.IOException;
 import java.net.URL;
+import java.time.Duration;
 
 /**
  * Defines a simple client for making HTTP requests.
@@ -67,6 +68,16 @@ public interface HttpClient {
      * @return HttpClient
      */
     HttpClient createClient(URL url);
+
+    /**
+     * Creates a HTTP client that will send requests to the given URL.
+     *
+     * @param url URL
+     * @param connectionTimeout int
+     * @param readTimeout int
+     * @return HttpClient
+     */
+    HttpClient createClient(URL url, Duration connectionTimeout, Duration readTimeout);
 
     /**
      * Closes idle clients.

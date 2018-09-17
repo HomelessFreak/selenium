@@ -18,6 +18,7 @@
 package org.openqa.selenium.remote.internal;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.http.protocol.HttpCoreContext.HTTP_TARGET_HOST;
 
 import org.apache.http.Header;
@@ -44,6 +45,7 @@ import java.net.BindException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.AbstractMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -265,18 +267,26 @@ public class ApacheHttpClient implements org.openqa.selenium.remote.http.HttpCli
 
     @Override
     public org.openqa.selenium.remote.http.HttpClient createClient(URL url) {
+      return createClient(url, Duration.ofMinutes(2), Duration.ofHours(3));
+    }
+
+    @Override
+    public org.openqa.selenium.remote.http.HttpClient createClient(URL url,
+                                                                   Duration connectionTimeout,
+                                                                   Duration readTimeout) {
       checkNotNull(url, "null URL");
       HttpClient client;
       if (url.getUserInfo() != null) {
         StringTokenizer tokens = new StringTokenizer(url.getUserInfo(), ":");
         UsernamePasswordCredentials credentials =
             new UsernamePasswordCredentials(tokens.nextToken(), tokens.nextToken());
-        client = clientFactory.createHttpClient(credentials);
+        client = clientFactory.createHttpClient(credentials, (int) connectionTimeout.toMillis(),
+                                                (int) readTimeout.toMillis());
       } else {
-        client = clientFactory.getHttpClient();
+        client = clientFactory.createHttpClient(null, (int) connectionTimeout.toMillis(),
+                                                (int) readTimeout.toMillis());
       }
-      return new ApacheHttpClient(client, url);
-    }
+      return new ApacheHttpClient(client, url);    }
 
     @Override
     public void cleanupIdleClients() {

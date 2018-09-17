@@ -1,4 +1,3 @@
-# BUILD FILE SYNTAX: SKYLARK
 java_library(name = 'grid',
   srcs = glob([
     'common/**/*.java',
@@ -21,7 +20,7 @@ java_library(name = 'grid',
     '//java/client/src/org/openqa/selenium/remote:remote',
     '//java/client/src/org/openqa/selenium/firefox:firefox',
     '//java/client/src/org/openqa/selenium/safari:safari',
-    '//java/server/src/org/openqa/selenium/grid/web:web',
+    '//java/server/src/org/openqa/selenium/grid/server:server',
     '//java/server/src/org/openqa/selenium/remote/server:server',
     '//java/server/src/org/openqa/selenium/remote/server:webdriver-servlet',
     '//java/server/src/org/openqa/selenium/remote/server/log:log',

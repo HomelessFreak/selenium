@@ -65,6 +65,10 @@ public class SelfRegisteringRemote {
 
   private boolean hasId;
 
+  private boolean timeoutFetchedFromHub;
+
+  private boolean browserTimeoutFetchedFromHub;
+
   public SelfRegisteringRemote(GridNodeConfiguration configuration) {
     this(RegistrationRequest.build(configuration, null, null));
   }
@@ -254,6 +258,40 @@ public class SelfRegisteringRemote {
         "http://" + registrationRequest.getConfiguration().getHubHost() + ":"
         + registrationRequest.getConfiguration().getHubPort() + "/grid/register";
 
+      // browserTimeout and timeout are always fetched from the hub. Nodes don't have default values.
+      // If a node has browserTimeout or timeout configured, those will have precedence over the hub.
+      LOG.fine("Fetching browserTimeout and timeout values from the hub before sending registration request");
+      try {
+        GridHubConfiguration hubConfiguration = getHubConfiguration();
+        LOG.fine("Hub configuration: " + new Json().toJson(hubConfiguration));
+        if (hubConfiguration.timeout == null || hubConfiguration.browserTimeout == null) {
+          throw new GridException("Hub browserTimeout or timeout (or both) are null");
+        }
+        if (registrationRequest.getConfiguration().timeout == null) {
+          registrationRequest.getConfiguration().timeout = hubConfiguration.timeout;
+          timeoutFetchedFromHub = true;
+        }
+        if (registrationRequest.getConfiguration().browserTimeout == null) {
+          registrationRequest.getConfiguration().browserTimeout = hubConfiguration.browserTimeout;
+          browserTimeoutFetchedFromHub = true;
+        }
+
+        // The hub restarts and changes its configuration, the node fetches and updates its own again.
+        // Only if it was previously fetched from the hub.
+        if (timeoutFetchedFromHub) {
+          registrationRequest.getConfiguration().timeout = hubConfiguration.timeout;
+        }
+        if (browserTimeoutFetchedFromHub) {
+          registrationRequest.getConfiguration().browserTimeout = hubConfiguration.browserTimeout;
+        }
+
+        LOG.fine("Updated node configuration: " + new Json().toJson(registrationRequest.getConfiguration()));
+      } catch (Exception e) {
+        LOG.warning(
+            "Error getting the parameters from the hub. The node may end up with wrong timeouts." +
+            e.getMessage());
+      }
+
       try {
         URL registration = new URL(tmp);
         LOG.info("Registering the node to the hub: " + registration);
@@ -267,24 +305,6 @@ public class SelfRegisteringRemote {
         HttpResponse response = client.execute(request);
         if (response.getStatus() != 200) {
           throw new GridException(String.format("The hub responded with %s", response.getStatus()));
-        }
-
-        try {
-          LOG.fine("Updating the node configuration from the hub");
-          GridHubConfiguration hubConfiguration = getHubConfiguration();
-          LOG.fine("Hub configuration: " + new Json().toJson(hubConfiguration));
-          // the node can not set these values. They must come from the hub
-          if (hubConfiguration.timeout != null && hubConfiguration.timeout >= 0) {
-            registrationRequest.getConfiguration().timeout = hubConfiguration.timeout;
-          }
-          if (hubConfiguration.browserTimeout != null && hubConfiguration.browserTimeout >= 0) {
-            registrationRequest.getConfiguration().browserTimeout = hubConfiguration.browserTimeout;
-          }
-          LOG.fine("Updated node configuration: " + new Json().toJson(registrationRequest.getConfiguration()));
-        } catch (Exception e) {
-          LOG.warning(
-              "error getting the parameters from the hub. The node may end up with wrong timeouts." + e
-                  .getMessage());
         }
 
         LOG.info("The node is registered to the hub and ready to use");

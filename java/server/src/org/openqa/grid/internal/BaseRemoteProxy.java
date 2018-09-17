@@ -42,6 +42,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.InvalidParameterException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -427,15 +428,24 @@ public class BaseRemoteProxy implements RemoteProxy {
     return config.timeout * 1000;
   }
 
+  /**
+   * @return the {@link HttpClient.Factory} to use.
+   * @deprecated use {@link BaseRemoteProxy#getHttpClient(URL, int, int)}
+   */
   public HttpClient getHttpClient(URL url) {
     return getRegistry().getHttpClient(url);
+  }
+
+  public HttpClient getHttpClient(URL url, int connectionTimeout, int readTimeout) {
+    return getRegistry().getHttpClient(url, connectionTimeout, readTimeout);
   }
 
   public Map<String, Object> getProxyStatus() {
     String url = getRemoteHost().toExternalForm() + "/wd/hub/status";
 
     HttpRequest r = new HttpRequest(GET, url);
-    HttpClient client = getHttpClient(getRemoteHost());
+    HttpClient client = getHttpClient(getRemoteHost(), config.nodeStatusCheckTimeout,
+                                      config.nodeStatusCheckTimeout);
     HttpResponse response;
     String existingName = Thread.currentThread().getName();
     try {

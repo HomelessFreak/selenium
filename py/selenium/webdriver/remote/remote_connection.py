@@ -137,7 +137,7 @@ class RemoteConnection(object):
 
         self._url = remote_server_addr
         if keep_alive:
-            self._conn = urllib3.PoolManager()
+            self._conn = urllib3.PoolManager(timeout=self._timeout)
 
         self._commands = {
             Command.STATUS: ('GET', '/status'),
@@ -212,6 +212,7 @@ class RemoteConnection(object):
                 ('GET', '/session/$sessionId/element/$id/equals/$other'),
             Command.GET_ALL_COOKIES: ('GET', '/session/$sessionId/cookie'),
             Command.ADD_COOKIE: ('POST', '/session/$sessionId/cookie'),
+            Command.GET_COOKIE: ('GET', '/session/$sessionId/cookie/$name'),
             Command.DELETE_ALL_COOKIES:
                 ('DELETE', '/session/$sessionId/cookie'),
             Command.DELETE_COOKIE:
@@ -391,14 +392,15 @@ class RemoteConnection(object):
         parsed_url = parse.urlparse(url)
         headers = self.get_remote_connection_headers(parsed_url, self.keep_alive)
         resp = None
+        if body and method != 'POST' and method != 'PUT':
+            body = None
+
         if self.keep_alive:
-            if body and method != 'POST' and method != 'PUT':
-                body = None
             resp = self._conn.request(method, url, body=body, headers=headers)
 
             statuscode = resp.status
         else:
-            http = urllib3.PoolManager()
+            http = urllib3.PoolManager(timeout=self._timeout)
             resp = http.request(method, url, body=body, headers=headers)
 
             statuscode = resp.status

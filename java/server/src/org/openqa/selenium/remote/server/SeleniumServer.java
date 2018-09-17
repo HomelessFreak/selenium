@@ -17,6 +17,7 @@
 
 package org.openqa.selenium.remote.server;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.openqa.selenium.remote.server.WebDriverServlet.ACTIVE_SESSIONS_KEY;
 import static org.openqa.selenium.remote.server.WebDriverServlet.NEW_SESSION_PIPELINE_KEY;
 
@@ -43,11 +44,13 @@ import org.seleniumhq.jetty9.server.Server;
 import org.seleniumhq.jetty9.server.ServerConnector;
 import org.seleniumhq.jetty9.server.handler.ContextHandler;
 import org.seleniumhq.jetty9.servlet.ServletContextHandler;
+import org.seleniumhq.jetty9.servlet.ServletHolder;
 import org.seleniumhq.jetty9.util.security.Constraint;
 import org.seleniumhq.jetty9.util.thread.QueuedThreadPool;
 
 import java.net.BindException;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -62,8 +65,8 @@ public class SeleniumServer implements GridNodeServer {
 
   private final static Logger LOG = Logger.getLogger(SeleniumServer.class.getName());
 
+  private final StandaloneConfiguration configuration;
   private Server server;
-  private StandaloneConfiguration configuration;
   private Map<String, Class<? extends Servlet>> extraServlets;
 
   /**
@@ -114,10 +117,6 @@ public class SeleniumServer implements GridNodeServer {
     }
   }
 
-  public void setConfiguration(StandaloneConfiguration configuration) {
-    this.configuration = configuration;
-  }
-
   public void setExtraServlets(Map<String, Class<? extends Servlet>> extraServlets) {
     this.extraServlets = extraServlets;
   }
@@ -131,24 +130,19 @@ public class SeleniumServer implements GridNodeServer {
 
     ServletContextHandler handler = new ServletContextHandler(ServletContextHandler.SECURITY);
 
-    if (configuration.browserTimeout != null && configuration.browserTimeout >= 0) {
-      handler.setInitParameter(WebDriverServlet.BROWSER_TIMEOUT_PARAMETER,
-                               String.valueOf(configuration.browserTimeout));
-    }
-
     long inactiveSessionTimeoutSeconds = configuration.timeout == null ?
                                    Long.MAX_VALUE / 1000 : configuration.timeout;
-    if (configuration.timeout != null && configuration.timeout >= 0) {
-      handler.setInitParameter(WebDriverServlet.SESSION_TIMEOUT_PARAMETER,
-                               String.valueOf(inactiveSessionTimeoutSeconds));
-    }
 
     NewSessionPipeline pipeline = createPipeline(configuration);
     handler.setAttribute(NEW_SESSION_PIPELINE_KEY, pipeline);
 
     handler.setContextPath("/");
-    handler.addServlet(WebDriverServlet.class, "/wd/hub/*");
-    handler.addServlet(WebDriverServlet.class, "/webdriver/*");
+
+    ActiveSessions allSessions = new ActiveSessions(inactiveSessionTimeoutSeconds, SECONDS);
+    ServletHolder driverServlet = new ServletHolder(new WebDriverServlet(allSessions, pipeline));
+
+    handler.addServlet(driverServlet, "/wd/hub/*");
+    handler.addServlet(driverServlet, "/webdriver/*");
     handler.setInitParameter(ConsoleServlet.CONSOLE_PATH_PARAMETER, "/wd/hub");
 
     handler.setInitParameter(DisplayHelpServlet.HELPER_TYPE_PARAMETER, configuration.role);
@@ -292,8 +286,9 @@ public class SeleniumServer implements GridNodeServer {
     }
   }
 
-  public static void main(String[] argv) {
-    StandaloneCliOptions options = new StandaloneCliOptions().parse(argv);
+  public static void main(String[] args) {
+    StandaloneCliOptions options = new StandaloneCliOptions();
+    options.parse(args);
 
     if (options.help) {
       StringBuilder message = new StringBuilder();
@@ -302,7 +297,7 @@ public class SeleniumServer implements GridNodeServer {
       return;
     }
 
-    SeleniumServer server = new SeleniumServer(options.toConfiguration());
+    SeleniumServer server = new SeleniumServer(new StandaloneConfiguration(options));
     server.boot();
   }
 
@@ -310,7 +305,9 @@ public class SeleniumServer implements GridNodeServer {
     if (msg != null) {
       System.out.println(msg);
     }
-    JCommander jCommander = new JCommander(new StandaloneCliOptions());
-    jCommander.usage();
+
+    StandaloneCliOptions options = new StandaloneCliOptions();
+    JCommander commander = options.parse();
+    commander.usage();
   }
 }

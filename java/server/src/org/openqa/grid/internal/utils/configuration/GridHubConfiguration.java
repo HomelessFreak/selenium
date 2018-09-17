@@ -17,9 +17,12 @@
 
 package org.openqa.grid.internal.utils.configuration;
 
+import static java.util.Optional.ofNullable;
+
 import com.google.common.annotations.VisibleForTesting;
 
 import org.openqa.grid.common.exception.GridConfigurationException;
+import org.openqa.grid.internal.cli.GridHubCliOptions;
 import org.openqa.grid.internal.listeners.Prioritizer;
 import org.openqa.grid.internal.utils.CapabilityMatcher;
 import org.openqa.grid.internal.utils.DefaultCapabilityMatcher;
@@ -72,6 +75,8 @@ public class GridHubConfiguration extends GridConfiguration {
 
   public String registry;
 
+  private GridHubCliOptions cliConfig;
+
   /**
    * Creates a new configuration using the default values.
    */
@@ -82,12 +87,30 @@ public class GridHubConfiguration extends GridConfiguration {
   public GridHubConfiguration(HubJsonConfiguration jsonConfig) {
     super(jsonConfig);
     role = ROLE;
-    cleanUpCycle = jsonConfig.getCleanUpCycle();
-    newSessionWaitTimeout = jsonConfig.getNewSessionWaitTimeout();
-    throwOnCapabilityNotPresent = jsonConfig.getThrowOnCapabilityNotPresent();
-    registry = jsonConfig.getRegistry();
-    capabilityMatcher = jsonConfig.getCapabilityMatcher();
-    prioritizer = jsonConfig.getPrioritizer();
+    cleanUpCycle = ofNullable(jsonConfig.getCleanUpCycle())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getCleanUpCycle());
+    newSessionWaitTimeout = ofNullable(jsonConfig.getNewSessionWaitTimeout())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getNewSessionWaitTimeout());
+    throwOnCapabilityNotPresent = ofNullable(jsonConfig.getThrowOnCapabilityNotPresent())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getThrowOnCapabilityNotPresent());
+    registry = ofNullable(jsonConfig.getRegistry())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getRegistry());
+    capabilityMatcher = ofNullable(jsonConfig.getCapabilityMatcher())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getCapabilityMatcher());
+    prioritizer = ofNullable(jsonConfig.getPrioritizer())
+        .orElse(DEFAULT_CONFIG_FROM_JSON.getPrioritizer());
+  }
+
+  public GridHubConfiguration(GridHubCliOptions cliConfig) {
+    this(ofNullable(cliConfig.getConfigFile()).map(HubJsonConfiguration::loadFromResourceOrFile)
+             .orElse(DEFAULT_CONFIG_FROM_JSON));
+    this.cliConfig = cliConfig;
+    super.merge(cliConfig);
+    ofNullable(cliConfig.getNewSessionWaitTimeout()).ifPresent(v -> newSessionWaitTimeout = v);
+    ofNullable(cliConfig.getThrowOnCapabilityNotPresent()).ifPresent(v -> throwOnCapabilityNotPresent = v);
+    ofNullable(cliConfig.getRegistry()).ifPresent(v -> registry = v);
+    ofNullable(cliConfig.getCapabilityMatcher()).ifPresent(v -> capabilityMatcher = v);
+    ofNullable(cliConfig.getPrioritizer()).ifPresent(v -> prioritizer = v);
   }
 
   /**
@@ -176,5 +199,9 @@ public class GridHubConfiguration extends GridConfiguration {
     sb.append(toString(format, "registry", registry));
 
     return sb.toString();
+  }
+
+  public GridHubCliOptions getCliConfig() {
+    return cliConfig;
   }
 }

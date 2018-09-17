@@ -27,8 +27,9 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.server.log.LoggingManager;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -58,7 +59,7 @@ public class DefaultGridRegistry extends BaseGridRegistry implements GridRegistr
 
   private final NewSessionRequestQueue newSessionQueue;
   private final Matcher matcherThread = new Matcher();
-  private final List<RemoteProxy> registeringProxies = new CopyOnWriteArrayList<>();
+  private final Set<RemoteProxy> registeringProxies = ConcurrentHashMap.newKeySet();
 
   private volatile boolean stop = false;
 
@@ -303,9 +304,16 @@ public class DefaultGridRegistry extends BaseGridRegistry implements GridRegistr
 
       if (registeringProxies.contains(proxy)) {
         LOG.warning(String.format("Proxy '%s' is already queued for registration.", proxy));
-
         return;
       }
+
+      // Updating browserTimeout and timeout values in case a node sends null values
+      proxy.getConfig().timeout = Optional
+          .ofNullable(proxy.getConfig().timeout)
+          .orElse(getHub().getConfiguration().timeout);
+      proxy.getConfig().browserTimeout = Optional
+          .ofNullable(proxy.getConfig().browserTimeout)
+          .orElse(getHub().getConfiguration().browserTimeout);
 
       registeringProxies.add(proxy);
       fireMatcherStateChanged();

@@ -18,8 +18,8 @@
 package org.openqa.selenium.interactions.internal;
 
 /**
- * @deprecated Use {@link org.openqa.selenium.interactions.Locatable} instead
- */
+  * @deprecated Use {@link org.openqa.selenium.interactions.Locatable} instead
+  */
 @Deprecated
 public interface Locatable extends org.openqa.selenium.interactions.Locatable {
 }

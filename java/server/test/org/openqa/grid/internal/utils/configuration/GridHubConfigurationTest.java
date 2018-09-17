@@ -17,12 +17,7 @@
 
 package org.openqa.grid.internal.utils.configuration;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 import org.openqa.grid.internal.cli.GridHubCliOptions;
@@ -35,12 +30,12 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
 
 public class GridHubConfigurationTest {
 
   static final Integer DEFAULT_TIMEOUT = StandaloneConfigurationTest.DEFAULT_TIMEOUT;
   static final Integer DEFAULT_BROWSER_TIMEOUT = StandaloneConfigurationTest.DEFAULT_BROWSER_TIMEOUT;
+  static final String DEFAULT_HOST = StandaloneConfigurationTest.DEFAULT_HOST;
   static final Integer DEFAULT_PORT = StandaloneConfigurationTest.DEFAULT_PORT;
   static final Boolean DEFAULT_DEBUG_TOGGLE = StandaloneConfigurationTest.DEFAULT_DEBUG_TOGGLE;
 
@@ -52,60 +47,47 @@ public class GridHubConfigurationTest {
 
   @Test
   public void testDefaults() {
-    GridHubConfiguration ghc = new GridHubConfiguration();
-    // these values come from the GridHubConfiguration class
-    assertEquals(DEFAULT_PORT, ghc.port);
-    assertEquals(GridHubConfiguration.ROLE, ghc.role);
-    assertEquals(DEFAULT_CAPABILITY_MATCHER_CLASS, ghc.capabilityMatcher.getClass().getCanonicalName());
-    assertEquals(DEFAULT_NEW_SESSION_WAIT_TIMEOUT, ghc.newSessionWaitTimeout);
-    assertEquals(DEFAULT_THROW_ON_CAPABILITY_NOT_PRESENT_TOGGLE, ghc.throwOnCapabilityNotPresent);
-    assertNull(ghc.hubConfig);
-    assertNull(ghc.prioritizer);
-
-    // these values come from the GridConfiguration base class
-    assertEquals(DEFAULT_CLEANUP_CYCLE, ghc.cleanUpCycle);
-    assertNull(ghc.host);
-    assertNull(ghc.maxSession);
-    assertNotNull(ghc.custom);
-    assertTrue(ghc.custom.isEmpty());
-    assertNotNull(ghc.servlets);
-    assertTrue(ghc.servlets.isEmpty());
-    assertNotNull(ghc.withoutServlets);
-    assertTrue(ghc.withoutServlets.isEmpty());
-
-    // these values come from the StandaloneConfiguration base class
-    assertEquals(DEFAULT_TIMEOUT, ghc.timeout);
-    assertEquals(DEFAULT_BROWSER_TIMEOUT, ghc.browserTimeout);
-    assertEquals(DEFAULT_DEBUG_TOGGLE, ghc.debug);
-    assertNull(ghc.jettyMaxThreads);
-    assertNull(ghc.log);
+    checkDefaults(new GridHubConfiguration());
   }
 
   @Test
-  public void testConstructorEqualsDefaultConfig() {
-    GridHubConfiguration actual = new GridHubConfiguration();
-    GridHubConfiguration expected =
-      GridHubConfiguration.loadFromJSON(GridHubConfiguration.DEFAULT_HUB_CONFIG_FILE);
+  public void testDefaultsFromConfig() {
+    HubJsonConfiguration jsonConfig = HubJsonConfiguration.loadFromResourceOrFile(GridHubConfiguration.DEFAULT_HUB_CONFIG_FILE);
+    checkDefaults(new GridHubConfiguration(jsonConfig));
+  }
 
-    assertEquals(expected.role, actual.role);
-    assertEquals(expected.port, actual.port);
-    assertEquals(expected.capabilityMatcher.getClass().getCanonicalName(),
-                 actual.capabilityMatcher.getClass().getCanonicalName());
-    assertEquals(expected.newSessionWaitTimeout, actual.newSessionWaitTimeout);
-    assertEquals(expected.throwOnCapabilityNotPresent, actual.throwOnCapabilityNotPresent);
-    assertEquals(expected.hubConfig, actual.hubConfig);
-    assertEquals(expected.prioritizer, actual.prioritizer);
-    assertEquals(expected.cleanUpCycle, actual.cleanUpCycle);
-    assertEquals(expected.host, actual.host);
-    assertEquals(expected.maxSession, actual.maxSession);
-    assertEquals(expected.custom.size(), actual.custom.size());
-    assertEquals(expected.servlets.size(), actual.servlets.size());
-    assertEquals(expected.withoutServlets.size(), actual.withoutServlets.size());
-    assertEquals(expected.timeout, actual.timeout);
-    assertEquals(expected.browserTimeout, actual.browserTimeout);
-    assertEquals(expected.debug, actual.debug);
-    assertEquals(expected.jettyMaxThreads, actual.jettyMaxThreads);
-    assertEquals(expected.log, actual.log);
+  @Test
+  public void testDefaultsFromCli() {
+    GridHubCliOptions cliConfig = new GridHubCliOptions();
+    checkDefaults(new GridHubConfiguration(cliConfig));
+  }
+
+  private void checkDefaults(GridHubConfiguration ghc) {
+    // these values come from the GridHubConfiguration class
+    assertThat(ghc.port).isEqualTo(DEFAULT_PORT);
+    assertThat(ghc.role).isEqualTo(GridHubConfiguration.ROLE);
+    assertThat(ghc.capabilityMatcher.getClass().getCanonicalName())
+        .isEqualTo(DEFAULT_CAPABILITY_MATCHER_CLASS);
+    assertThat(ghc.newSessionWaitTimeout).isEqualTo(DEFAULT_NEW_SESSION_WAIT_TIMEOUT);
+    assertThat(ghc.throwOnCapabilityNotPresent)
+        .isEqualTo(DEFAULT_THROW_ON_CAPABILITY_NOT_PRESENT_TOGGLE);
+    assertThat(ghc.hubConfig).isNull();
+    assertThat(ghc.prioritizer).isNull();
+
+    // these values come from the GridConfiguration base class
+    assertThat(ghc.cleanUpCycle).isEqualTo(DEFAULT_CLEANUP_CYCLE);
+    assertThat(ghc.host).isEqualTo(DEFAULT_HOST);
+    assertThat(ghc.maxSession).isNull();
+    assertThat(ghc.custom).isNotNull().isEmpty();
+    assertThat(ghc.servlets).isNotNull().isEmpty();
+    assertThat(ghc.withoutServlets).isNotNull().isEmpty();
+
+    // these values come from the StandaloneConfiguration base class
+    assertThat(ghc.timeout).isEqualTo(DEFAULT_TIMEOUT);
+    assertThat(ghc.browserTimeout).isEqualTo(DEFAULT_BROWSER_TIMEOUT);
+    assertThat(ghc.debug).isEqualTo(DEFAULT_DEBUG_TOGGLE);
+    assertThat(ghc.jettyMaxThreads).isNull();
+    assertThat(ghc.log).isNull();
   }
 
   @Test
@@ -117,10 +99,10 @@ public class GridHubConfigurationTest {
           ghc = GridHubConfiguration.loadFromJSON(jsonInput);
     }
 
-    assertEquals("hub", ghc.role);
-    assertEquals(1234, ghc.port.intValue());
-    assertEquals("dummyhost", ghc.host);
-    assertEquals(-1, ghc.newSessionWaitTimeout.intValue());
+    assertThat(ghc.role).isEqualTo("hub");
+    assertThat(ghc.port).isEqualTo(1234);
+    assertThat(ghc.host).isEqualTo("dummyhost");
+    assertThat(ghc.newSessionWaitTimeout).isEqualTo(-1);
   }
 
   @Test
@@ -133,12 +115,12 @@ public class GridHubConfigurationTest {
     other.newSessionWaitTimeout = 100;
     ghc.merge(other);
 
-    assertSame(other.capabilityMatcher, ghc.capabilityMatcher);
-    assertSame(other.prioritizer, ghc.prioritizer);
-    assertEquals(other.newSessionWaitTimeout, ghc.newSessionWaitTimeout);
-    assertEquals(other.throwOnCapabilityNotPresent, ghc.throwOnCapabilityNotPresent);
+    assertThat(ghc.capabilityMatcher).isSameAs(other.capabilityMatcher);
+    assertThat(ghc.prioritizer).isSameAs(other.prioritizer);
+    assertThat(ghc.newSessionWaitTimeout).isEqualTo(other.newSessionWaitTimeout);
+    assertThat(ghc.throwOnCapabilityNotPresent).isEqualTo(other.throwOnCapabilityNotPresent);
     // hubConfig is not a merged value
-    assertTrue(ghc.hubConfig == null);
+    assertThat(ghc.hubConfig).isNull();
   }
 
   @Test
@@ -151,11 +133,11 @@ public class GridHubConfigurationTest {
     GridHubConfiguration ghc = new GridHubConfiguration();
     ghc.merge(other);
 
-    assertTrue(ghc.capabilityMatcher != null);
-    assertTrue(ghc.newSessionWaitTimeout != null);
-    assertTrue(ghc.throwOnCapabilityNotPresent != null);
+    assertThat(ghc.capabilityMatcher).isNotNull();
+    assertThat(ghc.newSessionWaitTimeout).isNotNull();
+    assertThat(ghc.throwOnCapabilityNotPresent).isNotNull();
     // the default is null -- merge(null, null) = null;
-    assertTrue(ghc.prioritizer == null);
+    assertThat(ghc.prioritizer).isNull();
   }
 
   @Test
@@ -168,41 +150,41 @@ public class GridHubConfigurationTest {
     GridHubConfiguration other = new GridHubConfiguration();
     ghc.merge(other);
 
-    assertEquals(other.capabilityMatcher, ghc.capabilityMatcher);
-    assertEquals(other.newSessionWaitTimeout, ghc.newSessionWaitTimeout);
-    assertEquals(other.prioritizer, ghc.prioritizer);
-    assertEquals(other.throwOnCapabilityNotPresent, ghc.throwOnCapabilityNotPresent);
+    assertThat(ghc.capabilityMatcher).isEqualTo(other.capabilityMatcher);
+    assertThat(ghc.newSessionWaitTimeout).isEqualTo(other.newSessionWaitTimeout);
+    assertThat(ghc.prioritizer).isEqualTo(other.prioritizer);
+    assertThat(ghc.throwOnCapabilityNotPresent).isEqualTo(other.throwOnCapabilityNotPresent);
   }
 
   @Test
   public void testToString() {
     GridHubConfiguration ghc = new GridHubConfiguration();
 
-    assertTrue(ghc.toString().contains("-role hub"));
-    assertFalse(ghc.toString().contains("-servlets"));
-    assertFalse(ghc.toString().contains("custom"));
+    assertThat(ghc.toString()).contains("-role hub").doesNotContain("-servlets", "custom");
 
     ghc = new GridHubConfiguration();
     String[] args = ("-servlet com.foo.bar.ServletA -servlet com.foo.bar.ServletB"
                      + " -custom foo=bar,bar=baz").split(" ");
-    ghc = new GridHubCliOptions.Parser().parse(args).toConfiguration();
+    GridHubCliOptions options = new GridHubCliOptions();
+    options.parse(args);
+    ghc = new GridHubConfiguration(options);
 
-    assertTrue(ghc.toString().contains("-servlets com.foo.bar.ServletA"
-                                       + " -servlets com.foo.bar.ServletB"));
-    assertTrue(ghc.toString().contains("custom {"));
-    assertTrue(ghc.toString().contains("bar=baz"));
-    assertTrue(ghc.toString().contains("foo=bar"));
+    assertThat(ghc.toString())
+        .contains("-servlets com.foo.bar.ServletA -servlets com.foo.bar.ServletB",
+                  "custom {", "bar=baz", "foo=bar");
   }
 
   @Test
   public void testJcommanderConverterCapabilityMatcher() {
     String[] hubArgs = {"-capabilityMatcher", "org.openqa.grid.internal.utils.DefaultCapabilityMatcher",
                         "-prioritizer", "org.openqa.grid.internal.utils.configuration.PlaceHolderTestingPrioritizer"};
-    GridHubConfiguration ghc = new GridHubCliOptions.Parser().parse(hubArgs).toConfiguration();
-    assertEquals("org.openqa.grid.internal.utils.DefaultCapabilityMatcher",
-                 ghc.capabilityMatcher.getClass().getCanonicalName());
-    assertEquals("org.openqa.grid.internal.utils.configuration.PlaceHolderTestingPrioritizer",
-                 ghc.prioritizer.getClass().getCanonicalName());
+    GridHubCliOptions options = new GridHubCliOptions();
+    options.parse(hubArgs);
+    GridHubConfiguration ghc = new GridHubConfiguration(options);
+    assertThat(ghc.capabilityMatcher.getClass().getCanonicalName())
+        .isEqualTo("org.openqa.grid.internal.utils.DefaultCapabilityMatcher");
+    assertThat(ghc.prioritizer.getClass().getCanonicalName())
+        .isEqualTo("org.openqa.grid.internal.utils.configuration.PlaceHolderTestingPrioritizer");
   }
 
   @Test
@@ -218,19 +200,21 @@ public class GridHubConfigurationTest {
 
     GridHubConfiguration ghc = new GridHubConfiguration(HubJsonConfiguration.loadFromResourceOrFile(json));
 
-    assertEquals(1234, ghc.port.intValue());
-    assertEquals(true, ghc.debug);
-    assertEquals(1800, ghc.timeout.intValue());
-    assertEquals(2400, ghc.browserTimeout.intValue());
-    assertEquals(10000, ghc.cleanUpCycle.intValue());
-    assertEquals(1000, ghc.newSessionWaitTimeout.intValue());
-    assertEquals(true, ghc.throwOnCapabilityNotPresent);
-    assertEquals(DEFAULT_HUB_REGISTRY_CLASS, ghc.registry);
-    assertEquals(DEFAULT_CAPABILITY_MATCHER_CLASS, ghc.capabilityMatcher.getClass().getName());
-    assertEquals("org.openqa.grid.internal.utils.configuration.PlaceHolderTestingPrioritizer", ghc.prioritizer.getClass().getName());
-    assertEquals(Collections.EMPTY_LIST, ghc.servlets);
-    assertEquals(Collections.EMPTY_LIST, ghc.withoutServlets);
-    assertEquals(Collections.EMPTY_MAP, ghc.custom);
+    assertThat(ghc.port).isEqualTo(1234);
+    assertThat(ghc.debug).isEqualTo(true);
+    assertThat(ghc.timeout).isEqualTo(1800);
+    assertThat(ghc.browserTimeout).isEqualTo(2400);
+    assertThat(ghc.cleanUpCycle).isEqualTo(10000);
+    assertThat(ghc.newSessionWaitTimeout).isEqualTo(1000);
+    assertThat(ghc.throwOnCapabilityNotPresent).isEqualTo(true);
+    assertThat(ghc.registry).isEqualTo(DEFAULT_HUB_REGISTRY_CLASS);
+    assertThat(ghc.capabilityMatcher.getClass().getName())
+        .isEqualTo(DEFAULT_CAPABILITY_MATCHER_CLASS);
+    assertThat(ghc.prioritizer.getClass().getName())
+        .isEqualTo("org.openqa.grid.internal.utils.configuration.PlaceHolderTestingPrioritizer");
+    assertThat(ghc.servlets).isEmpty();
+    assertThat(ghc.withoutServlets).isEmpty();
+    assertThat(ghc.custom).isEmpty();
   }
 
 }

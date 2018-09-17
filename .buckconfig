@@ -16,6 +16,9 @@
 [build]
   metadata_storage = sqlite
 
+[buildfile]
+  includes = //java/rules.bzl
+
 [cache]
   mode = dir
   # This is large enough to contain everything built in //java/...
@@ -23,6 +26,7 @@
 
 [parser]
   polyglot_parsing_enabled = true
+  default_build_file_syntax = SKYLARK
 
 [resources]
   resource_aware_scheduling_enabled = true
